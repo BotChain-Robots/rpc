@@ -1,0 +1,59 @@
+#ifndef RPC_LIBRARY_H
+#define RPC_LIBRARY_H
+
+#include <chrono>
+#include <memory>
+#include <shared_mutex>
+#include <thread>
+
+#include "BlockingQueue.h"
+#include "constants.h"
+#include "mDNSDiscoveryService.h"
+
+
+constexpr auto RX_QUEUE_SIZE = 100;
+
+struct SizeAndSource {
+    size_t bytes_written;
+    uint8_t sender;
+};
+
+class MessagingInterface {
+  public:
+    MessagingInterface()
+        : m_stop_flag(false), m_rx_thread(std::thread(&MessagingInterface::handle_recv, this)),
+          m_rx_queue(std::make_shared<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>>(
+              RX_QUEUE_SIZE)) {
+#ifdef _WIN32
+        WSADATA wsaData;
+        WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
+        // Initialization must be after call to WSAStartup
+        m_discovery_service = std::make_unique<mDNSDiscoveryService>();
+    }
+
+    ~MessagingInterface();
+    int send(uint8_t *buffer, size_t size, uint8_t destination, uint8_t tag, bool durable);
+    int broadcast(uint8_t *buffer, size_t size, bool durable); // todo
+    std::optional<SizeAndSource> recv(uint8_t *buffer, size_t size, uint8_t tag);
+    int sendrecv(uint8_t *send_buffer, size_t send_size, uint8_t dest, uint8_t send_tag,
+                 uint8_t *recv_buffer, size_t recv_size, uint8_t recv_tag); // todo
+    std::unordered_set<uint8_t> find_connected_modules(std::chrono::duration<double> scan_duration);
+
+  private:
+    void handle_recv();
+
+    uint16_t m_sequence_number = 0;
+    std::unordered_map<uint8_t, std::shared_ptr<ICommunicationClient>> m_id_to_lossless_client;
+    std::unordered_map<uint8_t, std::shared_ptr<ICommunicationClient>> m_id_to_lossy_client;
+    std::unordered_map<int, std::unique_ptr<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>>>
+        m_tag_to_queue_map;
+    std::unique_ptr<IDiscoveryService> m_discovery_service;
+    std::atomic<bool> m_stop_flag;
+    std::thread m_rx_thread;
+    std::shared_ptr<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>> m_rx_queue;
+    std::shared_mutex m_client_mutex;
+    std::shared_mutex m_scan_mutex;
+};
+
+#endif // RPC_LIBRARY_H
