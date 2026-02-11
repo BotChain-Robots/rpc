@@ -20,4 +20,4 @@ inline std::vector<std::string> split(const std::string &str, const char delimit
     return result;
 }
 
-#endif //STRING_H
+#endif // STRING_H

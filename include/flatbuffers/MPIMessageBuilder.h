@@ -30,4 +30,4 @@ class MPIMessageBuilder {
 };
 } // namespace Flatbuffers
 
-#endif //MPIMESSAGEBUILDER_H
+#endif // MPIMESSAGEBUILDER_H

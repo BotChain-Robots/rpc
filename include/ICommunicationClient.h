@@ -12,4 +12,4 @@ class ICommunicationClient {
     virtual int send_msg(void *sendbuff, uint32_t len) = 0;
 };
 
-#endif //INETWORKCLIENT_H
+#endif // INETWORKCLIENT_H
