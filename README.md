@@ -3,7 +3,8 @@ The RPC library provides an interface to interact directly with the BotChain dev
 - mDNS discovery of modules
 - TCP connection to modules
 - UDP connection to modules
-- An MPI like messaging interface
+- An MPI like messaging interface, with a subset of the features
+- A unary gRPC like messaging interface
 
 The latest releases of the RPC library can be found in our [artifactory](http://jslightham.com:8082), or on [Jenkins](https://jenkins.jslightham.com/job/Botchain/job/librpc/).
 
