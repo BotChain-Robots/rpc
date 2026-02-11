@@ -1,11 +1,13 @@
-from conan import ConanFile
-from conan.tools.cmake import CMake, cmake_layout, CMakeToolchain, CMakeDeps
-from conan.tools.files import copy
 import os
+
+from conan import ConanFile
+from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
+from conan.tools.files import copy
+
 
 class MyLibraryConan(ConanFile):
     name = "librpc"
-    version = "1.1.6"
+    version = "1.1.7"
 
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}

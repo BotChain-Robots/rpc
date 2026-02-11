@@ -8,7 +8,7 @@ find_package(Threads REQUIRED)
 find_package(flatbuffers REQUIRED)
 find_package(spdlog REQUIRED)
 
-add_library(rpc src/librpc.cpp src/TCPClient.cpp src/UDPClient.cpp src/mDNSDiscoveryService.cpp src/MPIMessageBuilder.cpp
+add_library(rpc src/librpc.cpp src/TCPClient.cpp src/UDPClient.cpp src/mDNSDiscoveryService.cpp src/MPIMessageBuilder.cpp src/CallBuilder.cpp
         include/util/log.h)
 target_include_directories(rpc
         PUBLIC

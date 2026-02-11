@@ -12,4 +12,4 @@ struct SerializedMessage {
 };
 } // namespace Flatbuffers
 
-#endif //SERIALIZEDMESSAGE_H
+#endif // SERIALIZEDMESSAGE_H

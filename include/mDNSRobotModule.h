@@ -16,4 +16,4 @@ struct mDNSRobotModule {
     std::vector<int> connected_module_ids;
 };
 
-#endif //ROBOTMODULEINSTANCE_H
+#endif // ROBOTMODULEINSTANCE_H
