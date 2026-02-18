@@ -14,7 +14,7 @@
 
 constexpr auto RX_QUEUE_SIZE = 100;
 constexpr auto FN_CALL_TAG = 100; // reserved tag for RPC functionality
-constexpr auto FN_CALL_TIMEOUT = std::chrono::seconds(3);
+constexpr auto FN_CALL_TIMEOUT = std::chrono::seconds(10);
 
 struct SizeAndSource {
     size_t bytes_written;
