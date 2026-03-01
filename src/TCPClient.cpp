@@ -9,6 +9,7 @@
 #include "TCPClient.h"
 #include "constants.h"
 #include "spdlog/spdlog.h"
+#include "util/log.h"
 
 constexpr auto SLEEP_WHILE_INITIALIZING = std::chrono::milliseconds(250);
 constexpr int PORT = 3001;
@@ -55,7 +56,8 @@ int TCPClient::init() {
 #endif
 
     if (connect(this->m_socket, reinterpret_cast<sockaddr *>(&serv_addr), sizeof(serv_addr)) < 0) {
-        spdlog::error("[TCP] Connection failed");
+        spdlog::error("[TCP] Connection failed to connect");
+        print_errno();
         deinit();
         return -1;
     }

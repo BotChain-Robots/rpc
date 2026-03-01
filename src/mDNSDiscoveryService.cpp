@@ -300,17 +300,23 @@ std::optional<mDNSRobotModule> mDNSDiscoveryService::parse_response(uint8_t *buf
                 }
 
                 if (split_string[0] == MODULE_ID_STR) {
-                    response.id = stoi(split_string[1]);
+                    if (is_integer(std::string(split_string[1]))) {
+                        response.id = stoi(split_string[1]);
+                    }
                 }
 
                 if (split_string[0] == MODULE_TYPE_STR) {
-                    response.module_type = static_cast<ModuleType>(stoi(split_string[1]));
+                    if (is_integer(std::string(split_string[1]))) {
+                        response.module_type = static_cast<ModuleType>(stoi(split_string[1]));
+                    }
                 }
 
                 if (split_string[0] == CONNECTED_MODULES_STR) {
                     for (const auto connected_modules = split(split_string[1], ',');
                          const auto &module_id : connected_modules) {
-                        response.connected_module_ids.emplace_back(stoi(module_id));
+                         if (is_integer(module_id)) {
+                             response.connected_module_ids.emplace_back(stoi(module_id));
+                         }
                     }
                 }
             }

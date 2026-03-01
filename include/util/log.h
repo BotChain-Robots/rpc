@@ -11,7 +11,7 @@
 
 #ifdef _WIN32
 
-void print_errno() {
+inline void print_errno() {
     char errbuf[ERRBUF_SIZE];
     FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, WSAGetLastError(), 0, errbuf, sizeof(errbuf),
                   NULL);
@@ -23,7 +23,7 @@ void print_errno() {
 #include <errno.h>
 #include <string.h>
 
-void print_errno() {
+inline void print_errno() {
     spdlog::error("{}", strerror(errno));
 }
 
