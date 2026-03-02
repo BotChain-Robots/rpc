@@ -314,9 +314,9 @@ std::optional<mDNSRobotModule> mDNSDiscoveryService::parse_response(uint8_t *buf
                 if (split_string[0] == CONNECTED_MODULES_STR) {
                     for (const auto connected_modules = split(split_string[1], ',');
                          const auto &module_id : connected_modules) {
-                         if (is_integer(module_id)) {
-                             response.connected_module_ids.emplace_back(stoi(module_id));
-                         }
+                        if (is_integer(module_id)) {
+                            response.connected_module_ids.emplace_back(stoi(module_id));
+                        }
                     }
                 }
             }

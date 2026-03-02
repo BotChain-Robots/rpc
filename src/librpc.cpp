@@ -66,9 +66,10 @@ std::optional<SizeAndSource> MessagingInterface::recv(uint8_t *buffer, const siz
             {tag, std::make_unique<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>>(
                       PER_TAG_MAX_QUEUE_SIZE)});
     }
+    const auto &queue = m_tag_to_queue_map[tag];
     lock.unlock();
 
-    const auto data = m_tag_to_queue_map[tag]->dequeue(MAX_RECV_WAIT_TIME);
+    const auto data = queue->dequeue(MAX_RECV_WAIT_TIME);
 
     if (!data.has_value()) {
         return std::nullopt;
@@ -139,10 +140,10 @@ void MessagingInterface::handle_recv() {
                      std::make_unique<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>>(
                          PER_TAG_MAX_QUEUE_SIZE)});
             }
+            const auto &queue = m_tag_to_queue_map[mpi_message->tag()];
             lock.unlock();
 
-            m_tag_to_queue_map[mpi_message->tag()]->enqueue(std::move(data.value()),
-                                                            MAX_WAIT_TIME_TAG_ENQUEUE);
+            queue->enqueue(std::move(data.value()), MAX_WAIT_TIME_TAG_ENQUEUE);
         }
     }
 }
