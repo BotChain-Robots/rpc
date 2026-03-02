@@ -41,7 +41,7 @@ int MessagingInterface::send(uint8_t *buffer, const size_t size, const uint8_t d
 
     Flatbuffers::MPIMessageBuilder builder;
     const auto [mpi_buffer, mpi_size] = builder.build_mpi_message(
-        Messaging::MessageType_PTP, PC_MODULE_ID, destination, m_sequence_number++, durable, tag,
+        Messaging::MessageType_PTP, PC_MODULE_ID, destination, 0, durable, tag,
         std::vector<uint8_t>(buffer, buffer + size));
 
     std::shared_lock lock(m_client_mutex);
