@@ -85,7 +85,7 @@ int UDPClient::init() {
     mreq.imr_interface.s_addr = INADDR_ANY;
 
 #ifdef _WIN32
-    // Get hostname, resolve to primary IPv4 (won't work for all cases)
+    // Get hostname, resolve to primary IPv4
     char hostname[256];
     gethostname(hostname, sizeof(hostname));
     hostent *host = gethostbyname(hostname);
@@ -102,6 +102,22 @@ int UDPClient::init() {
         print_errno();
         deinit();
         return -1;
+    }
+
+    in_addr tx_iface{};
+    tx_iface.s_addr = mreq.imr_interface.s_addr;
+    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&tx_iface, sizeof(tx_iface)) < 0) {
+        spdlog::error("[UDP] Failed to set multicast TX interface");
+        print_errno();
+        deinit();
+        return -1;
+    }
+
+    // Set multicast TTL > 1 so packets leave the local subnet if needed (default is 1).
+    constexpr int mcast_ttl = 32;
+    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_TTL, (char *)&mcast_ttl, sizeof(mcast_ttl)) < 0) {
+        spdlog::warn("[UDP] Failed to set multicast TTL");
+        print_errno();
     }
 #else
     setsockopt(m_rx_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
