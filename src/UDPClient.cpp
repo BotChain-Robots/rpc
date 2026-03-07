@@ -44,6 +44,15 @@ int UDPClient::init() {
         return -2;
     }
 
+    constexpr int opt = 1;
+#ifdef _WIN32
+    setsockopt(m_rx_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
+    setsockopt(m_tx_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
+#else
+    setsockopt(m_rx_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(m_tx_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+#endif
+
     timeval timeout{};
     timeout.tv_sec = SOCKET_TIMEOUT_MS / 1000;
     timeout.tv_usec = (SOCKET_TIMEOUT_MS % 1000) * 1000;
@@ -65,20 +74,11 @@ int UDPClient::init() {
     if (int err = bind(m_rx_socket, reinterpret_cast<struct sockaddr *>(&server_addr),
                        sizeof(server_addr));
         0 != err) {
-        spdlog::error("[UDP] Socket unable to bind");
+        spdlog::error("[UDP] Socket unable to bind to port {}", RX_PORT);
         print_errno();
         deinit();
         return -1;
     }
-
-    constexpr int opt = 1;
-#ifdef _WIN32
-    setsockopt(m_rx_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
-    setsockopt(m_tx_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
-#else
-    setsockopt(m_rx_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    setsockopt(m_tx_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-#endif
 
     ip_mreq mreq;
     mreq.imr_multiaddr.s_addr = inet_addr(RECV_MCAST.c_str());
@@ -120,7 +120,12 @@ int UDPClient::init() {
         print_errno();
     }
 #else
-    setsockopt(m_rx_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+    if (setsockopt(m_rx_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)) < 0) {
+        spdlog::error("[UDP] Failed to join multicast group");
+        print_errno();
+        deinit();
+        return -1;
+    }
 #endif
 
     this->m_initialized = true;
