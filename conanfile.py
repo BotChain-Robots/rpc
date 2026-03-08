@@ -7,7 +7,7 @@ from conan.tools.files import copy
 
 class MyLibraryConan(ConanFile):
     name = "librpc"
-    version = "1.1.8"
+    version = "1.1.9"
 
     settings = "os", "compiler", "build_type", "arch"
     options = {"shared": [True, False], "fPIC": [True, False]}
