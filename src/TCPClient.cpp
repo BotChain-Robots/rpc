@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <thread>
 #include <vector>
 
 #include "TCPClient.h"
@@ -16,6 +17,8 @@ constexpr int PORT = 3001;
 constexpr auto QUEUE_ADD_TIMEOUT = std::chrono::milliseconds(100);
 constexpr auto RX_SLEEP_ON_ERROR = std::chrono::milliseconds(100);
 constexpr auto SOCKET_TIMEOUT_MS = 2500;
+constexpr int CONNECT_MAX_RETRIES = 5;
+constexpr auto CONNECT_RETRY_DELAY = std::chrono::milliseconds(500);
 
 // todo: - add authentication
 //       - encryption
@@ -55,9 +58,36 @@ int TCPClient::init() {
     setsockopt(this->m_socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 #endif
 
-    if (connect(this->m_socket, reinterpret_cast<sockaddr *>(&serv_addr), sizeof(serv_addr)) < 0) {
-        spdlog::error("[TCP] Connection failed to connect");
+    bool connected = false;
+    for (int attempt = 0; attempt < CONNECT_MAX_RETRIES; ++attempt) {
+        if (attempt > 0) {
+            CLOSE_SOCKET(this->m_socket);
+            if ((this->m_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+                spdlog::error("[TCP] Failed to recreate socket on retry");
+                return -2;
+            }
+#ifdef _WIN32
+            setsockopt(this->m_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+            setsockopt(this->m_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
+#else
+            setsockopt(this->m_socket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+            setsockopt(this->m_socket, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+#endif
+        }
+
+        if (connect(this->m_socket, reinterpret_cast<sockaddr *>(&serv_addr), sizeof(serv_addr)) ==
+            0) {
+            connected = true;
+            break;
+        }
+        spdlog::warn("[TCP] Connection attempt {}/{} failed, retrying...", attempt + 1,
+                     CONNECT_MAX_RETRIES);
         print_errno();
+        std::this_thread::sleep_for(CONNECT_RETRY_DELAY);
+    }
+
+    if (!connected) {
+        spdlog::error("[TCP] Connection failed to connect after {} attempts", CONNECT_MAX_RETRIES);
         deinit();
         return -1;
     }

@@ -50,7 +50,9 @@ int UDPClient::init() {
     setsockopt(m_tx_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt));
 #else
     setsockopt(m_rx_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(m_rx_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     setsockopt(m_tx_socket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    setsockopt(m_tx_socket, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 #endif
 
     timeval timeout{};
@@ -80,7 +82,7 @@ int UDPClient::init() {
         return -1;
     }
 
-    ip_mreq mreq;
+    ip_mreq mreq{};
     mreq.imr_multiaddr.s_addr = inet_addr(RECV_MCAST.c_str());
     mreq.imr_interface.s_addr = INADDR_ANY;
 
@@ -106,7 +108,8 @@ int UDPClient::init() {
 
     in_addr tx_iface{};
     tx_iface.s_addr = mreq.imr_interface.s_addr;
-    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&tx_iface, sizeof(tx_iface)) < 0) {
+    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_IF, (char *)&tx_iface, sizeof(tx_iface)) <
+        0) {
         spdlog::error("[UDP] Failed to set multicast TX interface");
         print_errno();
         deinit();
@@ -115,7 +118,8 @@ int UDPClient::init() {
 
     // Set multicast TTL > 1 so packets leave the local subnet if needed (default is 1).
     constexpr int mcast_ttl = 32;
-    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_TTL, (char *)&mcast_ttl, sizeof(mcast_ttl)) < 0) {
+    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_TTL, (char *)&mcast_ttl,
+                   sizeof(mcast_ttl)) < 0) {
         spdlog::warn("[UDP] Failed to set multicast TTL");
         print_errno();
     }
@@ -125,6 +129,27 @@ int UDPClient::init() {
         print_errno();
         deinit();
         return -1;
+    }
+
+    in_addr tx_iface{};
+    tx_iface.s_addr = mreq.imr_interface.s_addr; // INADDR_ANY lets the OS pick
+    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_IF, &tx_iface, sizeof(tx_iface)) < 0) {
+        spdlog::error("[UDP] Failed to set multicast TX interface");
+        print_errno();
+        deinit();
+        return -1;
+    }
+
+    constexpr int mcast_ttl = 32;
+    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_TTL, &mcast_ttl, sizeof(mcast_ttl)) < 0) {
+        spdlog::warn("[UDP] Failed to set multicast TTL");
+        print_errno();
+    }
+
+    constexpr int loop = 0;
+    if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop)) < 0) {
+        spdlog::warn("[UDP] Failed to disable multicast loopback");
+        print_errno();
     }
 #endif
 
@@ -158,18 +183,17 @@ int UDPClient::send_msg(void *sendbuff, const uint32_t len) {
     *reinterpret_cast<uint32_t *>(buffer.data()) = static_cast<uint32_t>(len);
     std::memcpy(buffer.data() + 4, sendbuff, len);
 
-    sockaddr_in mcast_dest = {
-        .sin_family = AF_INET,
-        .sin_port = htons(TX_PORT),
-    };
+    sockaddr_in mcast_dest{};
+    mcast_dest.sin_family = AF_INET;
+    mcast_dest.sin_port = htons(TX_PORT);
     inet_pton(AF_INET, SEND_MCAST.c_str(), &mcast_dest.sin_addr);
 
 #ifdef _WIN32
     return sendto(m_tx_socket, reinterpret_cast<const char *>(buffer.data()), buffer.size(), 0,
                   reinterpret_cast<sockaddr *>(&mcast_dest), sizeof(mcast_dest));
 #else
-    return sendto(m_tx_socket, buffer.data(), buffer.size(), 0,
-                  reinterpret_cast<sockaddr *>(&mcast_dest), sizeof(mcast_dest));
+    return static_cast<int>(sendto(m_tx_socket, buffer.data(), buffer.size(), 0,
+                                   reinterpret_cast<sockaddr *>(&mcast_dest), sizeof(mcast_dest)));
 #endif
 }
 
