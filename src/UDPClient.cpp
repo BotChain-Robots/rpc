@@ -8,6 +8,48 @@
 #include <vector>
 
 #include "UDPClient.h"
+
+#ifndef _WIN32
+#include <ifaddrs.h>
+#include <net/if.h>
+
+static in_addr find_local_interface(const std::string &remote_ip) {
+    in_addr result{};
+    result.s_addr = htonl(INADDR_ANY);
+
+    in_addr remote{};
+    if (inet_pton(AF_INET, remote_ip.c_str(), &remote) != 1) {
+        return result;
+    }
+
+    ifaddrs *ifap = nullptr;
+    if (getifaddrs(&ifap) != 0) {
+        return result;
+    }
+
+    for (const ifaddrs *ifa = ifap; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == nullptr || ifa->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+        if (!(ifa->ifa_flags & IFF_UP) || (ifa->ifa_flags & IFF_LOOPBACK)) {
+            continue;
+        }
+        if (ifa->ifa_netmask == nullptr) {
+            continue;
+        }
+        const auto *sin = reinterpret_cast<const sockaddr_in *>(ifa->ifa_addr);
+        const auto *mask = reinterpret_cast<const sockaddr_in *>(ifa->ifa_netmask);
+        if ((sin->sin_addr.s_addr & mask->sin_addr.s_addr) ==
+            (remote.s_addr & mask->sin_addr.s_addr)) {
+            result = sin->sin_addr;
+            break;
+        }
+    }
+
+    freeifaddrs(ifap);
+    return result;
+}
+#endif
 #include "spdlog/spdlog.h"
 #include "util/log.h"
 
@@ -84,7 +126,12 @@ int UDPClient::init() {
 
     ip_mreq mreq{};
     mreq.imr_multiaddr.s_addr = inet_addr(RECV_MCAST.c_str());
+#ifdef _WIN32
     mreq.imr_interface.s_addr = INADDR_ANY;
+#else
+    mreq.imr_interface = find_local_interface(this->m_remote_ip);
+    spdlog::info("[UDP] Using interface {} for multicast", inet_ntoa(mreq.imr_interface));
+#endif
 
 #ifdef _WIN32
     // Get hostname, resolve to primary IPv4
@@ -132,7 +179,7 @@ int UDPClient::init() {
     }
 
     in_addr tx_iface{};
-    tx_iface.s_addr = mreq.imr_interface.s_addr; // INADDR_ANY lets the OS pick
+    tx_iface.s_addr = mreq.imr_interface.s_addr;
     if (setsockopt(m_tx_socket, IPPROTO_IP, IP_MULTICAST_IF, &tx_iface, sizeof(tx_iface)) < 0) {
         spdlog::error("[UDP] Failed to set multicast TX interface");
         print_errno();

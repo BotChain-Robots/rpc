@@ -29,10 +29,10 @@ typedef int socket_t;
 class UDPClient final : public ICommunicationClient {
 
   public:
-    UDPClient(std::string /* ip */,
+    UDPClient(std::string ip,
               const std::shared_ptr<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>> &rx_queue)
         : m_stop_flag(false), m_thread(std::thread(&UDPClient::rx_thread, this)),
-          m_rx_queue(rx_queue) {
+          m_remote_ip(std::move(ip)), m_rx_queue(rx_queue) {
     }
     ~UDPClient() override;
     int init() override;
@@ -47,6 +47,7 @@ class UDPClient final : public ICommunicationClient {
     bool m_initialized = false;
     std::atomic<bool> m_stop_flag;
     std::thread m_thread;
+    std::string m_remote_ip;
     std::shared_ptr<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>> m_rx_queue;
 };
 
