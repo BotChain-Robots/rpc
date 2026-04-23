@@ -24,8 +24,7 @@ struct SizeAndSource {
 class MessagingInterface {
   public:
     MessagingInterface()
-        : m_stop_flag(false), m_rx_thread(std::thread(&MessagingInterface::handle_recv, this)),
-          m_fn_rx_thread(std::thread(&MessagingInterface::handle_fn_recv, this)),
+        : m_stop_flag(false),
           m_rx_queue(std::make_shared<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>>(
               RX_QUEUE_SIZE)) {
 #ifdef _WIN32
@@ -34,6 +33,8 @@ class MessagingInterface {
 #endif
         // Initialization must be after call to WSAStartup
         m_discovery_service = std::make_unique<mDNSDiscoveryService>();
+        m_rx_thread = std::thread(&MessagingInterface::handle_recv, this);
+        m_fn_rx_thread = std::thread(&MessagingInterface::handle_fn_recv, this);
     }
 
     ~MessagingInterface();

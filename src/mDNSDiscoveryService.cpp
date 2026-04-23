@@ -217,6 +217,9 @@ std::optional<mDNSRobotModule> mDNSDiscoveryService::parse_response(uint8_t *buf
                                                                     const int size) {
     int ptr = 0;
     mDNSRobotModule response{};
+    const auto remaining = [&](const int needed) {
+        return needed >= 0 && ptr >= 0 && ptr <= size && needed <= size - ptr;
+    };
 
     // Header
     if (size < sizeof(query_header)) {
@@ -231,7 +234,7 @@ std::optional<mDNSRobotModule> mDNSDiscoveryService::parse_response(uint8_t *buf
 
     // Questions
     for (int i = 0; i < h->num_questions; i++) {
-        if (ptr > size) {
+        if (ptr >= size) {
             return std::nullopt;
         }
 
@@ -241,13 +244,16 @@ std::optional<mDNSRobotModule> mDNSDiscoveryService::parse_response(uint8_t *buf
             return std::nullopt;
         }
         ptr = new_ptr;
+        if (!remaining(static_cast<int>(sizeof(query_footer)))) {
+            return std::nullopt;
+        }
         ptr += sizeof(query_footer);
     }
 
     // Answers and authority (we do not care about authority).
     bool robot_module = false;
     for (int i = 0; i < h->num_answers + h->num_authority + h->num_additional; i++) {
-        if (ptr > size) {
+        if (ptr >= size) {
             return std::nullopt;
         }
         // We assume that the boards mdns does not send any questions asking for
@@ -263,12 +269,19 @@ std::optional<mDNSRobotModule> mDNSDiscoveryService::parse_response(uint8_t *buf
         robot_module |= name.find("_robotcontrol") != std::string::npos;
         response.hostname = name;
 
+        if (!remaining(static_cast<int>(sizeof(answer)))) {
+            return std::nullopt;
+        }
         const auto a = reinterpret_cast<answer *>(buffer + ptr);
         a->type = ntohs(a->type);
         a->answer_class = ntohs(a->answer_class);
         a->ttl = ntohs(a->ttl);
         a->data_length = ntohs(a->data_length);
         ptr += sizeof(answer);
+
+        if (!remaining(a->data_length)) {
+            return std::nullopt;
+        }
 
         // A-Record
         if (a->type == 1 && robot_module) {
@@ -290,7 +303,13 @@ std::optional<mDNSRobotModule> mDNSDiscoveryService::parse_response(uint8_t *buf
         if (a->type == 16 && robot_module) {
             int inner_ptr = ptr;
             while (inner_ptr < a->data_length + ptr) {
+                if (inner_ptr >= size) {
+                    return std::nullopt;
+                }
                 const int len = buffer[inner_ptr++];
+                if (len < 0 || inner_ptr > size - len || inner_ptr > ptr + a->data_length - len) {
+                    return std::nullopt;
+                }
                 std::string s(reinterpret_cast<char *>(buffer + inner_ptr), len);
                 inner_ptr += len;
 
@@ -347,7 +366,7 @@ std::tuple<std::string, int> mDNSDiscoveryService::read_mdns_name(const uint8_t 
 
             if (buffer[ptr] >= 0xC0) { // compressed
                 ptr++;
-                if (buffer[ptr] < 0 || buffer[ptr] > ptr) {
+                if (ptr >= size || buffer[ptr] > ptr) {
                     return {"", -1};
                 }
                 const auto [name, l] = read_mdns_name(buffer, size, buffer[ptr]);

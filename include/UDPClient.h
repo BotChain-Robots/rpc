@@ -31,8 +31,8 @@ class UDPClient final : public ICommunicationClient {
   public:
     UDPClient(std::string ip,
               const std::shared_ptr<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>> &rx_queue)
-        : m_stop_flag(false), m_thread(std::thread(&UDPClient::rx_thread, this)),
-          m_remote_ip(std::move(ip)), m_rx_queue(rx_queue) {
+        : m_stop_flag(false), m_remote_ip(std::move(ip)), m_rx_queue(rx_queue) {
+        m_thread = std::thread(&UDPClient::rx_thread, this);
     }
     ~UDPClient() override;
     int init() override;

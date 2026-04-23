@@ -31,8 +31,8 @@ class TCPClient final : public ICommunicationClient {
   public:
     TCPClient(std::string ip,
               const std::shared_ptr<BlockingQueue<std::unique_ptr<std::vector<uint8_t>>>> &rx_queue)
-        : port{3001}, m_ip{std::move(ip)}, m_stop_flag(false),
-          m_thread(std::thread(&TCPClient::rx_thread, this)), m_rx_queue(rx_queue) {
+        : port{3001}, m_ip{std::move(ip)}, m_stop_flag(false), m_rx_queue(rx_queue) {
+        m_thread = std::thread(&TCPClient::rx_thread, this);
     }
     ~TCPClient() override;
     int init() override;
